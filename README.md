@@ -97,4 +97,7 @@ https://github.com/kongchen/swagger-maven-plugin
 ```
 
 ## Show results
-To show results add config for resource     <mvc:resources mapping="/swagger-api/**" location="classpath:/WEB-INF/swagger-api/"/>
+To show results add config for resource
+```xml
+<mvc:resources mapping="/swagger-api/**" location="classpath:/WEB-INF/swagger-api/"/>
+```
