@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <parent>
+        <groupId>org.sonatype.oss</groupId>
+        <artifactId>oss-parent</artifactId>
+        <version>7</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.github.uralmax</groupId>
+    <artifactId>jsonrpc4j-swagger-maven-plugin-helper</artifactId>
+    <version>1.0.0</version>
+
+    <name>jsonrpc4j-swagger-maven-plugin-helper</name>
+    <description>Config which helps you generate API document by swagger-maven-plugin during build phase for jsonRpc4j lib.</description>
+    <packaging>jar</packaging>
+
+    <dependencies>
+            <dependency>
+                <groupId>com.github.briandilley.jsonrpc4j</groupId>
+                <artifactId>jsonrpc4j</artifactId>
+                <version>${jsonrpc4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.kongchen</groupId>
+                <artifactId>swagger-maven-plugin</artifactId>
+                <version>${swagger-maven-plugin.version}</version>
+            </dependency>
+    </dependencies>
+    <build>
+        <resources>
+            <resource>
+                <directory>templates</directory>
+                <filtering>false</filtering>
+                <targetPath>${build.outputDirectory}/templates</targetPath>
+            </resource>
+        </resources>
+    </build>
+    <properties>
+        <jsonrpc4j.version>1.4.6</jsonrpc4j.version>
+        <swagger-maven-plugin.version>3.1.4</swagger-maven-plugin.version>
+    </properties>
+
+</project>
