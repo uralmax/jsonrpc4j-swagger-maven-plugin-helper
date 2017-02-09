@@ -6,7 +6,6 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,16 +21,16 @@ import com.github.kongchen.swagger.docgen.reader.AbstractReader;
 import com.github.kongchen.swagger.docgen.reader.ClassSwaggerReader;
 import com.github.kongchen.swagger.docgen.spring.SpringResource;
 import com.googlecode.jsonrpc4j.JsonRpcMethod;
+import com.googlecode.jsonrpc4j.JsonRpcParam;
 import com.googlecode.jsonrpc4j.JsonRpcService;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponses;
 import io.swagger.annotations.Authorization;
 import io.swagger.annotations.AuthorizationScope;
 import io.swagger.converter.ModelConverters;
-import io.swagger.jaxrs.ext.SwaggerExtension;
-import io.swagger.jaxrs.ext.SwaggerExtensions;
 import io.swagger.models.Model;
 import io.swagger.models.ModelImpl;
 import io.swagger.models.Operation;
@@ -42,19 +41,16 @@ import io.swagger.models.SecurityRequirement;
 import io.swagger.models.Swagger;
 import io.swagger.models.Tag;
 import io.swagger.models.parameters.BodyParameter;
-import io.swagger.models.parameters.Parameter;
 import io.swagger.models.properties.ArrayProperty;
 import io.swagger.models.properties.MapProperty;
 import io.swagger.models.properties.Property;
 import io.swagger.models.properties.RefProperty;
 import io.swagger.models.properties.StringProperty;
-import io.swagger.util.ParameterProcessor;
 
 /**
  * Reader for json-rpc
  *
  * @author Rozhkov Maksim
- * @created 16.01.17
  */
 public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwaggerReader {
 
@@ -89,7 +85,8 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
     /**
      * Read resource and fill swagger info
      *
-     * @param resource -resource
+     * @param resource
+     *            -resource
      * @return swagger main object
      */
     public Swagger read(SpringResource resource) {
@@ -135,91 +132,44 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
     }
 
     /**
-     * Search params from method
-     *
-     * @param type        type
-     * @param annotations annotation list
-     * @return list of params
-     */
-    protected List<Parameter> getParameters(Type type, List<Annotation> annotations) {
-
-        Iterator<SwaggerExtension> chain = SwaggerExtensions.chain();
-        List<Parameter> parameters = new ArrayList<Parameter>();
-        if (chain.hasNext()) {
-            SwaggerExtension extension = chain.next();
-            parameters = extension.extractParameters(annotations, type, getTypesToSkip(), chain);
-        }
-
-        if (!parameters.isEmpty()) {
-            for (Parameter parameter : parameters) {
-                ParameterProcessor.applyAnnotations(swagger, parameter, type, annotations);
-            }
-            ;
-        } else if (!getTypesToSkip().contains(type)) {
-            Parameter param = ParameterProcessor.applyAnnotations(swagger, null, type, annotations);
-            if (param != null) {
-                parameters.add(param);
-            }
-
-        }
-        return parameters;
-    }
-
-    /**
      * Get real body param for json rpc
      *
-     * @param allParams    all find params
-     * @param apiOperation - swagger annotation fo operation
-     * @param methodName   metho
+     * @param allParams
+     *            all find params
+     * @param apiOperation
+     *            - swagger annotation fo operation
+     * @param methodName
+     *            metho
      * @return real body for request
      */
-    private BodyParameter getBobyParam(List<Parameter> allParams, ApiOperation apiOperation,
+    private BodyParameter getBobyParam(List<Property> allParams, ApiOperation apiOperation,
             String methodName) {
 
         BodyParameter requestBody = null;
         if (!allParams.isEmpty()) {
             ModelImpl jsonRpcModel = new ModelImpl();
             jsonRpcModel.setType("object");
-            StringBuffer kyyJsonRpcWrapper = new StringBuffer();
+            StringBuilder kyyJsonRpcWrapper = new StringBuilder();
             Map<String, Property> properties = new HashMap<String, Property>();
-            if (allParams.size() == 1) {
-                // for json rpc all params body
-                if (allParams.get(0) instanceof BodyParameter) {
-                    BodyParameter param = (BodyParameter) allParams.get(0);
-                    RefProperty property = new RefProperty();
-                    RefModel modelParam = (RefModel) param.getSchema();
-                    kyyJsonRpcWrapper.append(modelParam.getSimpleRef());
-                    property.set$ref(modelParam.get$ref());
-                    property.setRequired(true);
-                    properties.put("params", new ArrayProperty(property));
-                    String description = param.getDescription();
-                    if (description == null) {
-                        description = swagger.getDefinitions().get(modelParam.getSimpleRef())
-                                .getDescription();
-                    }
-                    jsonRpcModel.setDescription(description);
-                }
-            } else {
+            if (allParams.size() > 0) {
                 jsonRpcModel.setDescription(apiOperation.value());
-                StringBuffer wrapperOfParams = new StringBuffer();
+                StringBuilder wrapperOfParams = new StringBuilder();
                 ModelImpl paramsWrapperModel = new ModelImpl();
-                for (Parameter param : allParams) {
-                    // for json rpc all params body
-                    if (param instanceof BodyParameter) {
-                        BodyParameter bodyParam = (BodyParameter) param;
-                        RefProperty property = new RefProperty();
-                        RefModel model = (RefModel) bodyParam.getSchema();
-                        wrapperOfParams.append(model.getSimpleRef());
-                        kyyJsonRpcWrapper.append(model.getSimpleRef());
-                        property.set$ref(model.get$ref());
-                        property.setRequired(true);
-                        paramsWrapperModel.addProperty(bodyParam.getName(), property);
+                for (Property paramProperty : allParams) {
+                    if (paramProperty instanceof RefProperty) {
+                        RefProperty refprop = (RefProperty) paramProperty;
+                        wrapperOfParams.append(refprop.getSimpleRef());
+                        kyyJsonRpcWrapper.append(refprop.getSimpleRef());
+                    } else {
+                        wrapperOfParams.append(paramProperty.getName());
+                        kyyJsonRpcWrapper.append(paramProperty.getName());
                     }
+                    paramsWrapperModel.addProperty(paramProperty.getName(), paramProperty);
                 }
                 wrapperOfParams.append("ParamsWrapper");
                 String wrapperOfParamsKey = wrapperOfParams.toString();
                 swagger.addDefinition(wrapperOfParamsKey, paramsWrapperModel);
-                properties.put("params", new ArrayProperty(new RefProperty(wrapperOfParamsKey)));
+                properties.put("params", new RefProperty(wrapperOfParamsKey));
             }
             properties.put("jsonrpc",
                     new StringProperty()._enum("2.0").example("2.0").required(true));
@@ -232,8 +182,8 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
             swagger.addDefinition(key, jsonRpcModel);
             requestBody = new BodyParameter();
             requestBody.setRequired(true);
-            requestBody.setName("request");
             requestBody.setDescription(jsonRpcModel.getDescription());
+            requestBody.setName("body");
             requestBody.setSchema(new RefModel(key));
         }
         return requestBody;
@@ -242,8 +192,10 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
     /**
      * Response wrapper for list type
      *
-     * @param type     -type
-     * @param property - swagger property
+     * @param type
+     *            -type
+     * @param property
+     *            - swagger property
      * @return wrapped response
      */
     private Property withResponseContainer(String type, Property property) {
@@ -263,8 +215,10 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
     /**
      * Get swagger operation from method
      *
-     * @param apiOperation - swagger operation
-     * @param method       method
+     * @param apiOperation
+     *            - swagger operation
+     * @param method
+     *            method
      * @return swagger Operation object
      */
     private Operation parseMethod(ApiOperation apiOperation, Method method) {
@@ -329,30 +283,27 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
             hasApiAnnotation =
                     AnnotationUtils.findAnnotation((Class) responseClass, Api.class) != null;
         }
-        if (responseClass != null && !responseClass.equals(Void.class) && !responseClass
-                .equals(ResponseEntity.class) && !hasApiAnnotation) {
+        if (responseClass != null && !responseClass.equals(Void.class)
+                && !responseClass.equals(ResponseEntity.class) && !hasApiAnnotation) {
             if (isPrimitive(responseClass)) {
                 Property property = ModelConverters.getInstance().readAsProperty(responseClass);
                 if (property != null) {
                     Property responseProperty = withResponseContainer(responseContainer, property);
-                    operation.response(apiOperation.code(),
-                            new Response().description("").schema(responseProperty)
-                                    .headers(defaultResponseHeaders));
+                    operation.response(apiOperation.code(), new Response().description("")
+                            .schema(responseProperty).headers(defaultResponseHeaders));
                 }
             } else if (!responseClass.equals(Void.class) && !responseClass.equals(void.class)) {
                 Map<String, Model> models = ModelConverters.getInstance().read(responseClass);
                 if (models.isEmpty()) {
                     Property pp = ModelConverters.getInstance().readAsProperty(responseClass);
-                    operation.response(apiOperation.code(),
-                            new Response().description("").schema(pp)
-                                    .headers(defaultResponseHeaders));
+                    operation.response(apiOperation.code(), new Response().description("")
+                            .schema(pp).headers(defaultResponseHeaders));
                 }
                 for (String key : models.keySet()) {
                     Property responseProperty = withResponseContainer(responseContainer,
                             new RefProperty().asDefault(key));
-                    operation.response(apiOperation.code(),
-                            new Response().description("").schema(responseProperty)
-                                    .headers(defaultResponseHeaders));
+                    operation.response(apiOperation.code(), new Response().description("")
+                            .schema(responseProperty).headers(defaultResponseHeaders));
                     swagger.model(key, models.get(key));
                 }
                 models = ModelConverters.getInstance().readAll(responseClass);
@@ -376,12 +327,39 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
         Class[] parameterTypes = method.getParameterTypes();
         Type[] genericParameterTypes = method.getGenericParameterTypes();
         Annotation[][] paramAnnotations = method.getParameterAnnotations();
-        List<Parameter> allParams = new ArrayList<Parameter>();
+        List<Property> allParams = new ArrayList<Property>();
         for (int i = 0; i < parameterTypes.length; i++) {
             Type type = genericParameterTypes[i];
             List<Annotation> annotations = Arrays.asList(paramAnnotations[i]);
-            List<Parameter> parameters = getParameters(type, annotations);
-            allParams.addAll(parameters);
+            if (!getTypesToSkip().contains(type)) {
+
+                final Property property = ModelConverters.getInstance().readAsProperty(type);
+                if (property != null) {
+                    for (Map.Entry<String, Model> entry : ModelConverters.getInstance()
+                            .readAll(type).entrySet()) {
+                        swagger.addDefinition(entry.getKey(), entry.getValue());
+                    }
+                }
+                if (property != null) {
+                    String name = "unknow";
+                    for (Annotation paramAnnotation : annotations) {
+                        if (paramAnnotation instanceof JsonRpcParam) {
+                            name = ((JsonRpcParam) paramAnnotation).value();
+                            break;
+                        } else if (paramAnnotation instanceof ApiParam) {
+                            ApiParam apiParamAnnotation = ((ApiParam) paramAnnotation);
+                            name = apiParamAnnotation.name();
+                            if (name != null && name.length() > 0) {
+                                break;
+                            }
+                            property.setDescription(apiParamAnnotation.value());
+                            property.setExample(apiParamAnnotation.example());
+                        }
+                    }
+                    property.setName(name);
+                    allParams.add(property);
+                }
+            }
         }
         JsonRpcMethod jsonRpcMethod = AnnotationUtils.findAnnotation(method, JsonRpcMethod.class);
         BodyParameter bobyParam = getBobyParam(allParams, apiOperation, jsonRpcMethod.value());
@@ -397,7 +375,8 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
     /**
      * Get map of url and methods
      *
-     * @param methods analized methods
+     * @param methods
+     *            analized methods
      * @return map url-> Methods
      */
     private Map<String, List<Method>> collectApisByRequestMapping(List<Method> methods) {
@@ -424,9 +403,12 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
     /**
      * Analyze controller and search resource
      *
-     * @param controllerClazz class
-     * @param resourceMap     map of result
-     * @param description     description
+     * @param controllerClazz
+     *            class
+     * @param resourceMap
+     *            map of result
+     * @param description
+     *            description
      * @return return result map
      */
     private Map<String, SpringResource> analyzeController(Class<?> controllerClazz,
@@ -442,13 +424,11 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
                 if (jsonRpcMethod != null) {
                     // It is necessary to modify as few methods able to live on the same url in
                     // swagger
-                    String resourceKey =
-                            controllerClazz.getCanonicalName() + requestUrl + ' ' + jsonRpcMethod
-                                    .value();
+                    String resourceKey = controllerClazz.getCanonicalName() + requestUrl + ' '
+                            + jsonRpcMethod.value();
                     if (!resourceMap.containsKey(resourceKey)) {
-                        SpringResource springResource =
-                                new SpringResource(controllerClazz, requestUrl, resourceKey,
-                                        description);
+                        SpringResource springResource = new SpringResource(controllerClazz,
+                                requestUrl, resourceKey, description);
                         springResource.setControllerMapping(requestUrl);
                         resourceMap.put(resourceKey, springResource);
                     }
