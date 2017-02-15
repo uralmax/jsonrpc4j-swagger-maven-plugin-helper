@@ -14,7 +14,6 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.maven.plugin.logging.Log;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 
 import com.github.kongchen.swagger.docgen.GenerateException;
 import com.github.kongchen.swagger.docgen.reader.AbstractReader;
@@ -155,6 +154,7 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
                 jsonRpcModel.setDescription(apiOperation.value());
                 StringBuilder wrapperOfParams = new StringBuilder();
                 ModelImpl paramsWrapperModel = new ModelImpl();
+                paramsWrapperModel.setType(ModelImpl.OBJECT);
                 for (Property paramProperty : allParams) {
                     if (paramProperty instanceof RefProperty) {
                         RefProperty refprop = (RefProperty) paramProperty;
@@ -278,13 +278,7 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
         if (responseClass == null) {
             responseClass = method.getGenericReturnType();
         }
-        boolean hasApiAnnotation = false;
-        if (responseClass instanceof Class) {
-            hasApiAnnotation =
-                    AnnotationUtils.findAnnotation((Class) responseClass, Api.class) != null;
-        }
-        if (responseClass != null && !responseClass.equals(Void.class)
-                && !responseClass.equals(ResponseEntity.class) && !hasApiAnnotation) {
+        if (responseClass != null && !responseClass.equals(Void.class)) {
             if (isPrimitive(responseClass)) {
                 Property property = ModelConverters.getInstance().readAsProperty(responseClass);
                 if (property != null) {
@@ -306,10 +300,10 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
                             .schema(responseProperty).headers(defaultResponseHeaders));
                     swagger.model(key, models.get(key));
                 }
-                models = ModelConverters.getInstance().readAll(responseClass);
-                for (Map.Entry<String, Model> entry : models.entrySet()) {
-                    swagger.model(entry.getKey(), entry.getValue());
-                }
+            }
+            Map<String, Model> models = ModelConverters.getInstance().readAll(responseClass);
+            for (Map.Entry<String, Model> entry : models.entrySet()) {
+                swagger.model(entry.getKey(), entry.getValue());
             }
         }
 
