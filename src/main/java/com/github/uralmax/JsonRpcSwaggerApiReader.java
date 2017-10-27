@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.maven.plugin.logging.Log;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.http.MediaType;
@@ -52,6 +53,10 @@ import io.swagger.models.properties.StringProperty;
  * @author Rozhkov Maksim
  */
 public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwaggerReader {
+
+    private static String JsonRPC_WRAPPER_NAME_FORMAT = "JsonRPC(%s)";
+
+    private static String JsonRPC_PARAMS_NAME_FORMAT = "JsonRPC(%s) Params(%s)";
 
     private String resourcePath;
 
@@ -144,30 +149,23 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
     private BodyParameter getBobyParam(List<Property> allParams, ApiOperation apiOperation,
             String methodName) {
 
+        String jsonRpcPath = resourcePath + " " + methodName;
         BodyParameter requestBody = null;
         if (!allParams.isEmpty()) {
             ModelImpl jsonRpcModel = new ModelImpl();
             jsonRpcModel.setType("object");
-            StringBuilder kyyJsonRpcWrapper = new StringBuilder();
             Map<String, Property> properties = new HashMap<String, Property>();
             if (allParams.size() > 0) {
                 jsonRpcModel.setDescription(apiOperation.value());
-                StringBuilder wrapperOfParams = new StringBuilder();
                 ModelImpl paramsWrapperModel = new ModelImpl();
                 paramsWrapperModel.setType(ModelImpl.OBJECT);
+                String paramNames = "";
                 for (Property paramProperty : allParams) {
-                    if (paramProperty instanceof RefProperty) {
-                        RefProperty refprop = (RefProperty) paramProperty;
-                        wrapperOfParams.append(refprop.getSimpleRef());
-                        kyyJsonRpcWrapper.append(refprop.getSimpleRef());
-                    } else {
-                        wrapperOfParams.append(paramProperty.getName());
-                        kyyJsonRpcWrapper.append(paramProperty.getName());
-                    }
+                    paramNames = StringUtils.join(paramNames, paramProperty.getName());
                     paramsWrapperModel.addProperty(paramProperty.getName(), paramProperty);
                 }
-                wrapperOfParams.append("ParamsWrapper");
-                String wrapperOfParamsKey = wrapperOfParams.toString();
+                String wrapperOfParamsKey =
+                        String.format(JsonRPC_PARAMS_NAME_FORMAT, jsonRpcPath, paramNames);
                 swagger.addDefinition(wrapperOfParamsKey, paramsWrapperModel);
                 properties.put("params", new RefProperty(wrapperOfParamsKey));
             }
@@ -177,8 +175,7 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
             properties.put("method",
                     new StringProperty()._enum(methodName).example(methodName).required(true));
             jsonRpcModel.setProperties(properties);
-            kyyJsonRpcWrapper.append("JsonRpcWrapper");
-            String key = kyyJsonRpcWrapper.toString();
+            String key = String.format(JsonRPC_WRAPPER_NAME_FORMAT, jsonRpcPath);
             swagger.addDefinition(key, jsonRpcModel);
             requestBody = new BodyParameter();
             requestBody.setRequired(true);
