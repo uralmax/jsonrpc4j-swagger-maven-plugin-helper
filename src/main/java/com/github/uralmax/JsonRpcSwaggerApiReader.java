@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.maven.plugin.logging.Log;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.http.MediaType;
@@ -54,11 +53,15 @@ import io.swagger.models.properties.StringProperty;
  */
 public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwaggerReader {
 
-    private static String JsonRPC_WRAPPER_NAME_FORMAT = "JsonRPC(%s)";
+    public static final String SEPARATOR = "_";
 
-    private static String JsonRPC_PARAMS_NAME_FORMAT = "JsonRPC(%s) Params(%s)";
+    private static final String JsonRPC_WRAPPER_NAME_FORMAT = "JsonRPC %s";
+
+    private static final String JsonRPC_PARAMS_NAME_FORMAT = "JsonRPC %s Params(%s)";
 
     private String resourcePath;
+
+    private String modifiedResourcePath;
 
     /**
      * Content type is constant
@@ -112,7 +115,7 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
         }
 
         resourcePath = resource.getControllerMapping();
-
+        modifiedResourcePath = resourcePath.replace("/", SEPARATOR);
         Map<String, List<Method>> apiMethodMap = collectApisByRequestMapping(methods);
 
         for (String path : apiMethodMap.keySet()) {
@@ -149,7 +152,7 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
     private BodyParameter getBobyParam(List<Property> allParams, ApiOperation apiOperation,
             String methodName) {
 
-        String jsonRpcPath = resourcePath + " " + methodName;
+        String jsonRpcPath = modifiedResourcePath + SEPARATOR + methodName;
         BodyParameter requestBody = null;
         if (!allParams.isEmpty()) {
             ModelImpl jsonRpcModel = new ModelImpl();
@@ -161,7 +164,7 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
                 paramsWrapperModel.setType(ModelImpl.OBJECT);
                 String paramNames = "";
                 for (Property paramProperty : allParams) {
-                    paramNames = StringUtils.join(paramNames, paramProperty.getName());
+                    paramNames = paramNames + " " + paramProperty.getName();
                     paramsWrapperModel.addProperty(paramProperty.getName(), paramProperty);
                 }
                 String wrapperOfParamsKey =
@@ -223,7 +226,8 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
         Operation operation = new Operation();
         Type responseClass = null;
         String responseContainer = null;
-        String operationId = method.getName();
+        String operationId =
+                method.getDeclaringClass().getSimpleName() + SEPARATOR + method.getName();
         if (apiOperation.hidden()) {
             return null;
         }
