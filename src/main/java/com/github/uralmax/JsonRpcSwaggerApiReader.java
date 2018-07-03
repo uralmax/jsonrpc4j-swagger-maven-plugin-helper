@@ -263,7 +263,7 @@ public class JsonRpcSwaggerApiReader extends AbstractReader implements ClassSwag
         List<SecurityRequirement> securities = new ArrayList<SecurityRequirement>();
         for (Authorization auth : apiOperation.authorizations()) {
             if (!auth.value().isEmpty()) {
-                SecurityRequirement security = new SecurityRequirement();
+                SecurityRequirement security = new SecurityRequirement(auth.value());
                 for (AuthorizationScope scope : auth.scopes()) {
                     if (!scope.scope().isEmpty()) {
                         security.addScope(scope.scope());
