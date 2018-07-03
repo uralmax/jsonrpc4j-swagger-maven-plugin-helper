@@ -10,7 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.github.uralmax</groupId>
     <artifactId>jsonrpc4j-swagger-maven-plugin-helper</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.3</version>
 
     <name>jsonrpc4j-swagger-maven-plugin-helper</name>
     <description>Config which helps you generate API document by swagger-maven-plugin during build phase for jsonRpc4j lib.</description>
